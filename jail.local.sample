@@ -3,7 +3,7 @@
 port     =  ssh
 
 # The logfile used to trigger the actual ban. The file does not have to exist
-logpath  =  /etc/fail2ban/empty.log
+logpath  =  /var/log/fail2ban/sshd.log
 
 # How long in seconds should an IP be blocked (36000s = 10 hrs)
 bantime  =  36000

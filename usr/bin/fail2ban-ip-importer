@@ -1,67 +1,82 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-import sys
+import sys, os
+import ssl, socket
+import configparser, requests
+
+from fail2ban.client.csocket import CSocket
+
 import logging
-import urllib2
-import socket
-import ssl
-
-# Inserts our own modules path first in the list
-# fix for bug #343821
-sys.path.insert(1, "/usr/share/fail2ban")
-
-# Now we can import our modules
-from client.csocket import CSocket
-
-logSys = logging.getLogger("fail2ban.client")
-
-
+logSys = logging.getLogger("fail2ban.importer")
+    
 class Blocklistimporter:
     def __init__(self):
         self.__conf = dict()
-        self.__conf["socket"] = "/var/run/fail2ban/fail2ban.sock"
-        self.__conf["url"] = "https://api.blocklist.de/getlast.php?time=300"
-        self.__conf["logfile"] = "/etc/fail2ban/empty.log"
-        self.__conf["loglevel"] = logging.ERROR
+        self.__conf["socket"] = self.__get_conf('Socket', 'SOCKET')
+        self.__conf["url"] = self.__get_conf('Link', 'URL')
+        self.__conf["logfile"] = self.__get_conf('Log', 'LOG_FILE')
+        self.__conf["loglevel"] = self.__get_conf('Log', 'LOG_LEVEL')
+
+    def __get_conf(self, block, prop, path="/etc/fail2ban-importer/fail2importer.conf"):
+        if not os.path.exists(path):
+            self.die("Config file not found", 0)
+
+        config = configparser.ConfigParser()
+        config.read(path)
+        return config.get(block, prop)
 
     def die(self, message="", code=0):
         if message:
+            print(message)
             logSys.error(message)
         sys.exit(code)
 
     def fetch_list(self):
         logSys.debug("Fetching IPs")
+        print("Fetching IPs")
         try:
-            listcontent = urllib2.urlopen(self.__conf["url"], timeout=10).readlines()
-        except urllib2.HTTPError as e:
+            listcontent = requests.get(self.__conf["url"], timeout=10)
+            listcontent = listcontent.text.split("\n")
+
+        except requests.HTTPError as e:
             self.die("Cannot fetch URL: %s" % e, 1)
-        except urllib2.URLError as e:
+        except requests.URLRequired as e:
             logSys.debug("Cannot fetch URL: %s", e)
             self.die("", 0)
         except ssl.SSLError as e:
             logSys.debug("Cannot fetch URL: %s", e)
             self.die("", 0)
-            
+        except Exception as error:
+            logSys.debug(error)
+            self.die("", 0)
+
         logSys.debug("Got IPs")
         return listcontent
 
     def block_ip(self, ip):
         try:
             client = CSocket(self.__conf["socket"])
-            command = ["set", "blocklist", "banip"]
-            logSys.debug("Blocking %s", ip)
+            command = ["set", self.__get_conf('Jail', 'TYPE'), "banip"]
+
+            logSys.debug("Blocking %s" % ip)
+            print("Blocking %s" % ip)
+
             ret = client.send(command + [ip])
+
             if ret[0] == 0:
                 logSys.debug("OK : " + str(ret[1]))
             else:
-                print ret
+                print(ret)
                 logSys.debug("NOK: %s = %s", ret[1].args, ret[1])
                 raise Exception
+
         except socket.error:
             logSys.error("Unable to contact server. Is it running?")
             raise
-        except Exception, e:
-            logSys.error(e)
+
+        except Exception as errors:
+            logSys.error(errors)
+            print(errors)
             raise
 
     def start(self):
@@ -74,10 +89,13 @@ class Blocklistimporter:
         listcontent = self.fetch_list()
         for ip in listcontent:
             try:
-                self.block_ip(ip.rstrip())
-            except Exception, e:
-                logSys.debug("Got exception: %s" % str(e))
+                self.block_ip(ip)
+
+            except Exception as errors:
+                logSys.debug("Got exception: %s" % str(errors))
+                print("Got exception: %s" % str(errors))
                 return False
+
         logSys.debug("Touching log to ban new IPs")
         open(self.__conf["logfile"], 'w').close()
         return True

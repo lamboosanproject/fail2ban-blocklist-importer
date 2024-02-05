@@ -1,0 +1,16 @@
+[Unit]
+Description=Fail2Ban BlockIP Importer
+PartOf=fail2ban.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/fail2ban-ip-importer
+Restart=on-failure
+LimitNOFILE=500000
+LimitNPROC=500000
+RemainAfterExit=yes
+TasksMax=128
+TimeoutStartSec=9999999
+
+[Install]
+WantedBy=multi-user.target

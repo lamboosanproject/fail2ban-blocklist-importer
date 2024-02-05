@@ -1,0 +1,13 @@
+[Unit]
+Description=Fail2Ban BlockIP Importer Timer
+After=systemd-networkd.service
+Wants=network.target network-online.target systemd-networkd-wait-online.service
+
+
+[Timer]
+OnBootSec=30sec
+OnUnitActiveSec=2h
+Unit=fail2ban-blockip-importer.service
+
+[Install]
+WantedBy=multi-user.target
