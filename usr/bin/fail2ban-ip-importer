@@ -35,7 +35,7 @@ class Blocklistimporter:
         logSys.debug("Fetching IPs")
         print("Fetching IPs")
         try:
-            listcontent = requests.get(self.__conf["url"], timeout=10)
+            listcontent = requests.get(self.__conf["url"], timeout=10, headers=self.__get_conf("Link", "HEADERS"))
             listcontent = listcontent.text.split("\n")
 
         except requests.HTTPError as e:
@@ -55,20 +55,21 @@ class Blocklistimporter:
 
     def block_ip(self, ip):
         try:
-            client = CSocket(self.__conf["socket"])
-            command = ["set", self.__get_conf('Jail', 'TYPE'), "banip"]
+            if ip:
+                client = CSocket(self.__conf["socket"])
+                command = ["set", self.__get_conf('Jail', 'TYPE'), "banip"]
 
-            logSys.debug("Blocking %s" % ip)
-            print("Blocking %s" % ip)
+                logSys.debug("Blocking %s" % ip)
+                print("Blocking %s" % ip)
 
-            ret = client.send(command + [ip])
+                ret = client.send(command + [ip])
 
-            if ret[0] == 0:
-                logSys.debug("OK : " + str(ret[1]))
-            else:
-                print(ret)
-                logSys.debug("NOK: %s = %s", ret[1].args, ret[1])
-                raise Exception
+                if ret[0] == 0:
+                    logSys.debug("OK : " + str(ret[1]))
+                else:
+                    print(ret)
+                    logSys.debug("NOK: %s = %s", ret[1].args, ret[1])
+                    raise Exception
 
         except socket.error:
             logSys.error("Unable to contact server. Is it running?")
