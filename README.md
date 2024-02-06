@@ -16,6 +16,7 @@ Configuration
 -------------
 Copy folder with config file 
 *   **cp -r etc/fail2ban-importer /etc/fail2ban-importer**
+*   **mkdir /var/log/fail2ban/**
 
 In the script, edit the config file:
 *   **socket:** The socket used by fail2ban
